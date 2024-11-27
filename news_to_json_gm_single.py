@@ -107,24 +107,42 @@ Important: Only output the JSON structure with no additional explanation or comm
         logging.info("Received response from Gemini")
 
         try:
-            # Remove ```json and ``` from the response
-            json_content = re.sub(r'^```json\s*|\s*```$', '', response.text.strip())
-            parsed_response = json.loads(json_content)
-            logging.info("Successfully parsed Gemini's response as JSON")
-            return parsed_response
-        except json.JSONDecodeError as e:
-            logging.error("Failed to parse Gemini's response as JSON")
-            logging.error(f"Raw response: {response.text}")
-            logging.error(f"JSON parse error: {str(e)}")
-            return {
-                "error": "Failed to parse Gemini's response as JSON",
-                "raw_response": response.text,
-                "parse_error": str(e)
-            }
+            # Clean up the response text
+            json_content = response.text.strip()
+            # Remove any markdown code block indicators
+            json_content = re.sub(r'^```json\s*|\s*```$', '', json_content)
+            # Remove any trailing commas before closing brackets/braces
+            json_content = re.sub(r',(\s*[}\]])', r'\1', json_content)
+            # Clean up any potential whitespace issues
+            json_content = json_content.strip()
+            
+            try:
+                parsed_response = json.loads(json_content)
+                logging.info("Successfully parsed Gemini's response as JSON")
+                return parsed_response
+            except json.JSONDecodeError as e:
+                logging.error(f"JSON parse error: {str(e)}")
+                logging.error(f"Problematic JSON content: {json_content}")
+                # Return empty list instead of error object to maintain consistency
+                return []
+
+        except Exception as e:
+            logging.error(f"Error cleaning response text: {str(e)}")
+            return []
 
     except Exception as e:
         logging.error(f"Error processing articles: {str(e)}")
-        return {"error": f"Error processing articles: {str(e)}"}
+        return []
+
+def save_batch_results(batch_results, batch_number):
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    output_file = f'processed_articles_batch_{batch_number}_{timestamp}.json'
+    
+    logging.info(f"Saving batch {batch_number} results to {output_file}")
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(batch_results, f, indent=2, ensure_ascii=False)
+    
+    logging.info(f"Batch {batch_number} results saved to {output_file}")
 
 if __name__ == "__main__":
     logging.info("Script started")
@@ -142,15 +160,18 @@ if __name__ == "__main__":
         
         for i in range(0, total_articles, batch_size):
             batch = successful_articles[i:i+batch_size]
-            logging.info(f"Processing batch {i//batch_size + 1} of {(total_articles + batch_size - 1)//batch_size}")
+            batch_number = i//batch_size + 1
+            logging.info(f"Processing batch {batch_number} of {(total_articles + batch_size - 1)//batch_size}")
             
             batch_results = process_articles_with_gemini(batch)
             all_results.extend(batch_results)
             
-            logging.info(f"Completed processing batch {i//batch_size + 1}")
+            save_batch_results(batch_results, batch_number)
+            
+            logging.info(f"Completed processing batch {batch_number}")
         
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        output_file = f'processed_articles_{timestamp}.json'
+        output_file = f'processed_articles_all_{timestamp}.json'
         
         logging.info(f"Saving all results to {output_file}")
         with open(output_file, 'w', encoding='utf-8') as f:
