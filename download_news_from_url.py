@@ -14,7 +14,7 @@ async def fetch_content(client, url):
         response = await client.get(url, headers=headers)
         if response.status_code == 200:
             # Try different encodings
-            encodings = ['utf-8', 'iso-8859-1', 'windows-1252']
+            encodings = ['utf-8', 'iso-8859-1', 'windows-1252', 'latin-1']
             content = None
             for encoding in encodings:
                 try:
