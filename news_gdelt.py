@@ -5,11 +5,11 @@ import asyncio
 from bs4 import BeautifulSoup
 
 f = Filters(
-    keyword = "APPL",
+    keyword = ["apple", "APPL"],
     theme = ["ECON_STOCKMARKET", "ECON_TRADE"],
-    domain = ["bloomberg.com", "ft.com", "wsj.com"],
+    domain = ["cnbc.com", "businessinsider.com", "seekingalpha.com", "investing.com", "finance.yahoo.com", "marketwatch.com", "morningstar.com"],
     # domain = ["investing.com", "seekingalpha.com", "finance.yahoo.com", "marketwatch.com"],
-    start_date = "2024-10-14",
+    start_date = "2022-10-14",
     end_date = "2024-11-15"
 )
 

@@ -18,6 +18,7 @@ class KLine:
         self.best_long_period = 20
         self.max_crossovers = 0
         self.significant_change_threshold = significant_change_threshold
+        self.inflection_points = []
 
     def fetch_data(self):
         r = requests.get(self.url)
@@ -69,21 +70,39 @@ class KLine:
                     self.best_long_period = long_test
 
     @staticmethod
-    def find_significant_inflections(prices, window=3, threshold=0.05):
+    def find_significant_inflections(prices, window=3, threshold=0.10, min_distance=2):
         inflection_points = []
-        for i in range(window, len(prices) - window):
-            is_max = all(prices[i] > prices[i-j] for j in range(1, window+1)) and \
-                     all(prices[i] > prices[i+j] for j in range(1, window+1))
-            is_min = all(prices[i] < prices[i-j] for j in range(1, window+1)) and \
-                     all(prices[i] < prices[i+j] for j in range(1, window+1))
+        
+        def is_significant_change(current_idx, last_idx):
+            return abs((prices[current_idx] - prices[last_idx]) / prices[last_idx]) >= threshold
+        
+        def is_local_maximum(i, window_size):
+            if prices[i] <= prices[i-1] or prices[i] <= prices[i+1]:
+                return False
             
-            if is_max or is_min:
-                prev_price = prices[i-1]
-                curr_price = prices[i]
-                if prev_price != 0:
-                    change = abs((curr_price - prev_price) / prev_price)
-                    if change >= threshold:
-                        inflection_points.append(i)
+            left_max = max(prices[max(0, i-window_size):i])
+            right_max = max(prices[i+1:min(len(prices), i+window_size+1)])
+            
+            return prices[i] >= left_max and prices[i] >= right_max
+        
+        def is_local_minimum(i, window_size):
+            if prices[i] >= prices[i-1] or prices[i] >= prices[i+1]:
+                return False
+            
+            left_min = min(prices[max(0, i-window_size):i])
+            right_min = min(prices[i+1:min(len(prices), i+window_size+1)])
+            
+            return prices[i] <= left_min and prices[i] <= right_min
+        
+        potential_points = []
+        for i in range(window, len(prices) - window):
+            if is_local_maximum(i, window) or is_local_minimum(i, window):
+                potential_points.append(i)
+        
+        for point in potential_points:
+            if not inflection_points or (point - inflection_points[-1] >= min_distance):
+                if not inflection_points or is_significant_change(point, inflection_points[-1]):
+                    inflection_points.append(point)
         
         return inflection_points
 
@@ -100,7 +119,6 @@ class KLine:
 
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 12))
 
-        # First subplot - Moving Averages
         ax1.plot(self.filtered_dates, self.filtered_prices, label='Price', alpha=0.5)
         ax1.plot(ma_dates, short_ma, label=f'{self.best_short_period}-month MA')
         ax1.plot(ma_dates, long_ma, label=f'{self.best_long_period}-month MA')
@@ -117,18 +135,17 @@ class KLine:
         ax1.grid(True)
         ax1.legend()
 
-        # Second subplot - Inflection Points
         window_size = 3
 
-        inflection_points = self.find_significant_inflections(self.filtered_prices, 
+        self.inflection_points = self.find_significant_inflections(self.filtered_prices, 
                                                               window=window_size,
                                                               threshold=self.significant_change_threshold)
 
         ax2.plot(self.filtered_dates, self.filtered_prices, label='Price', alpha=0.8)
 
-        for idx in inflection_points:
+        for idx in self.inflection_points:
             ax2.plot(self.filtered_dates[idx], self.filtered_prices[idx], 'go', markersize=10,
-                     label='Inflection Point' if idx == inflection_points[0] else "")
+                     label='Inflection Point' if idx == self.inflection_points[0] else "")
 
         ax2.set_title(f'{self.symbol} Monthly Stock Prices with Inflection Points (>{self.significant_change_threshold*100}% change)')
         ax2.set_xlabel('Date')
@@ -142,7 +159,23 @@ class KLine:
         print(f"Best short MA period: {self.best_short_period}")
         print(f"Best long MA period: {self.best_long_period}")
         print(f"Number of crossovers: {self.max_crossovers}")
-        print(f"Number of significant inflection points: {len(inflection_points)}")
+        print(f"Number of significant inflection points: {len(self.inflection_points)}")
+
+        self.save_inflection_points()
+
+    def save_inflection_points(self):
+        inflection_data = [
+            {
+                "date": self.filtered_dates[idx].strftime('%Y-%m-%d'),
+                "price": self.filtered_prices[idx],
+                "index": idx
+            } for idx in self.inflection_points
+        ]
+        
+        filename = f'inflection_points_{self.symbol}.json'
+        with open(filename, 'w') as f:
+            json.dump(inflection_data, f, indent=4)
+        print(f"Inflection points saved to {filename}")
 
 # Usage example:
 kline = KLine('OXY', 'AYTLT9XYXR8L9OSZ')

@@ -15,6 +15,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 def process_articles_with_gemini(articles):
     logging.info("Starting to process articles with Gemini")
 
+    # Load inflection points
+    with open('inflection_points_OXY.json', 'r') as f:
+        inflection_points = json.load(f)
+
     prompt = """You are a financial news analyzer. Your task is to extract structured information from multiple financial news articles and output it in JSON format. Follow these specific guidelines:
 
 1. Output Structure Required:
@@ -55,13 +59,24 @@ def process_articles_with_gemini(articles):
         "severity": number,     // 1-5 scale
         "confidence": number,   // 0-1 scale
         "impact_duration": string // SHORT_TERM, MEDIUM_TERM, LONG_TERM
+    }},
+    "inflection_point": {{
+        "date": string,
+        "price": number,
+        "relevance_ranking": number,
+        "reasoning": string     // Chain of thought in 140 characters
     }}
   }}
 ]
 
+Consider these inflection points for OXY stock:
+{inflection_points}
+
 Please process the following news articles and output the JSON according to these specifications:
 
 {article_texts}
+
+For each article, identify the most relevant inflection point based on the event classification, specific impact on financials, and overall market sentiment. Rank the relevance of each article to its identified inflection point (1 being most relevant). Include a concise chain of thought (140 characters) explaining the relevance.
 
 Important: Only output the JSON structure with no additional explanation or commentary. Ensure the JSON is valid and properly formatted. The output should be an array of JSON objects, one for each article processed."""
 
@@ -85,7 +100,10 @@ Important: Only output the JSON structure with no additional explanation or comm
     article_texts = "\n\n---ARTICLE SEPARATOR---\n\n".join([article['content'] for article in articles if article.get('content')])
     
     try:
-        response = model.generate_content(prompt.format(article_texts=article_texts))
+        response = model.generate_content(prompt.format(
+            inflection_points=json.dumps(inflection_points, indent=2),
+            article_texts=article_texts
+        ))
         logging.info("Received response from Gemini")
 
         try:
@@ -115,20 +133,30 @@ if __name__ == "__main__":
             scraped_data = json.load(f)
         logging.info("Successfully loaded scraped_articles_results.json")
         
-        # Process only the first 180 successfully scraped articles
-        successful_articles = scraped_data['successful_articles'][:120]
-        logging.info(f"Processing the first 120 successful articles out of {len(scraped_data['successful_articles'])} total")
+        successful_articles = scraped_data['successful_articles']
+        total_articles = len(successful_articles)
+        logging.info(f"Total successful articles: {total_articles}")
         
-        results = process_articles_with_gemini(successful_articles)
+        batch_size = 120
+        all_results = []
+        
+        for i in range(0, total_articles, batch_size):
+            batch = successful_articles[i:i+batch_size]
+            logging.info(f"Processing batch {i//batch_size + 1} of {(total_articles + batch_size - 1)//batch_size}")
+            
+            batch_results = process_articles_with_gemini(batch)
+            all_results.extend(batch_results)
+            
+            logging.info(f"Completed processing batch {i//batch_size + 1}")
         
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         output_file = f'processed_articles_{timestamp}.json'
         
-        logging.info(f"Saving results to {output_file}")
+        logging.info(f"Saving all results to {output_file}")
         with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(results, f, indent=2, ensure_ascii=False)
+            json.dump(all_results, f, indent=2, ensure_ascii=False)
         
-        logging.info(f"Processing completed. Results saved to {output_file}")
+        logging.info(f"Processing completed. All results saved to {output_file}")
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
     logging.info("Script finished")
