@@ -206,7 +206,7 @@ def main():
             total_articles = len(successful_articles)
             logging.info(f"Total successful articles: {total_articles}")
             
-            batch_size = 100
+            batch_size = 80
             all_results = []
             
             for i in range(0, total_articles, batch_size):
