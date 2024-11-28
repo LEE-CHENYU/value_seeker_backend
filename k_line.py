@@ -5,7 +5,7 @@ import numpy as np
 from datetime import datetime, timedelta
 
 class KLine:
-    def __init__(self, symbol, years_to_display=20, significant_change_threshold=0.1, show_chart=False):
+    def __init__(self, symbol, api_key, function='TIME_SERIES_MONTHLY', years_to_display=20, significant_change_threshold=0.1):
         self.symbol = symbol
         self.years_to_display = years_to_display
         self.data = None

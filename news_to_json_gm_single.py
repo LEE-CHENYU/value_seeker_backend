@@ -75,6 +75,14 @@ Output Structure Required:
         "severity": number,     // 1-5 scale
         "confidence": number,   // 0-1 scale
         "impact_duration": string // SHORT_TERM, MEDIUM_TERM, LONG_TERM
+    }},
+    "inflection_point": {{
+        "date": string,
+        "price": number,
+        "index": number,
+        "prev_date": string,
+        "prev_price": number,
+        "price_change": number
     }}
   }}
 ]
@@ -83,7 +91,9 @@ Please process the following news articles and output the JSON according to thes
 
 {article_texts}
 
-Important: Only output the JSON structure with no additional explanation or commentary. Ensure the JSON is valid and properly formatted. The output should be an array of JSON objects, one for each article processed.
+For each article, identify the most relevant inflection point by:
+1. Finding the closest inflection point date to the article date (prioritizing points before the article)
+2. Considering whether the price change direction aligns with the article's sentiment and content
 
 Important formatting rules:
 1. All string values must be in double quotes
