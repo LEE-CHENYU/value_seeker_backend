@@ -9,10 +9,12 @@ import datetime
 import traceback 
 import logging 
 
-from flask import request, Response
+from flask import request, Response, jsonify
 from flask_restx import Resource, fields, Namespace
 
 from werkzeug.datastructures import FileStorage
+
+from ..utils.k_line import KLine
 
 ns = Namespace('kline', description='Extracted kline data and turning points.')
 
@@ -100,6 +102,34 @@ class KlineRaw(Resource):
         except KeyError as e:
             print(f"Error processing data: {e}")  # 调试用
             ns.abort(500, f"Unexpected API response format: {str(e)}")
+
+@ns.route('/inflection-points/<string:symbol>')
+class InflectionPoints(Resource):
+    @ns.doc('get_inflection_points')
+    @ns.param('api_key', 'Alpha Vantage API key', required=True)
+    @ns.param('threshold', 'Significant change threshold (default: 0.1)', required=False)
+    @ns.param('years', 'Number of years to analyze (default: 20)', required=False)
+    def get(self, symbol):
+        """Get significant inflection points for a stock"""
+        args = request.args
+        api_key = args.get('api_key')
+        threshold = float(args.get('threshold', 0.1))
+        years = int(args.get('years', 20))
+
+        if not api_key:
+            return {'error': 'API key is required'}, 400
+
+        try:
+            kline = KLine(
+                symbol=symbol,
+                api_key=api_key,
+                years_to_display=years,
+                significant_change_threshold=threshold
+            )
+            inflection_points = kline.get_inflection_points()
+            return jsonify(inflection_points)
+        except Exception as e:
+            return {'error': str(e)}, 500
 
 if __name__ == '__main__':
     print(KLineResponseFormat.kline_response_model)

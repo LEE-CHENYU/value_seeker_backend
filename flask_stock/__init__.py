@@ -32,6 +32,8 @@ global bxp_environment
 global app_context 
 global app_name
 
+from .controllers.kline_data import ns as kline_ns
+
 def create_app():
     print("Creating app")
     global app
@@ -48,6 +50,7 @@ def create_app():
     print('blueprint', blueprint.__repr__())
     api.init_app(blueprint, doc=flask_settings.FLASK_APP_CONTEXT)
     app.register_blueprint(blueprint)
+    api.add_namespace(kline_ns, path='/api/v1')
     return app, api
 
 
