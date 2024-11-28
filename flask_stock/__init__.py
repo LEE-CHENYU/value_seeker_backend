@@ -33,11 +33,13 @@ global app_context
 global app_name
 
 from .controllers.kline_data import ns as kline_ns
+from flask_cors import CORS
 
 def create_app():
     print("Creating app")
     global app
     app = Flask(__name__)
+    CORS(app)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1) 
     app.debug = flask_settings.FLASK_DEBUG
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0

@@ -16,6 +16,8 @@ from werkzeug.datastructures import FileStorage
 
 from ..utils.k_line import KLine
 
+import yfinance as yf
+
 ns = Namespace('kline', description='Extracted kline data and turning points.')
 
 request_parser = ns.parser()
@@ -123,6 +125,25 @@ class InflectionPoints(Resource):
             inflection_points = kline.get_inflection_points()
             return jsonify(inflection_points)
         except Exception as e:
+            return {'error': str(e)}, 500
+
+@ns.route('/search/<string:symbol>')
+class StockSearch(Resource):
+    @ns.doc('search_stock')
+    def get(self, symbol):
+        """Validate if a stock symbol exists"""
+        try:
+            ticker = yf.Ticker(symbol)
+            # Just try to get the current price to validate
+            current_price = ticker.history(period='1d')
+            
+            if not current_price.empty:
+                return {'valid': True}, 200
+            return {'valid': False}, 404
+            
+        except Exception as e:
+            # Log the error for debugging
+            print(f"Error searching for symbol {symbol}: {str(e)}")
             return {'error': str(e)}, 500
 
 if __name__ == '__main__':
