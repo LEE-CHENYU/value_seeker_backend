@@ -2,6 +2,7 @@ import yfinance as yf
 import numpy as np
 from datetime import datetime, timedelta
 import json
+import matplotlib.pyplot as plt
 
 class KLine:
     def __init__(self, symbol, years_to_display=20, significant_change_threshold=0.1, show_chart=False):
