@@ -1,16 +1,12 @@
-import requests
-import json
-import matplotlib.pyplot as plt
+import yfinance as yf
 import numpy as np
 from datetime import datetime, timedelta
+import json
 
 class KLine:
-    def __init__(self, symbol, api_key, function='TIME_SERIES_MONTHLY', years_to_display=20, significant_change_threshold=0.1, show_chart=False):
+    def __init__(self, symbol, years_to_display=20, significant_change_threshold=0.1, show_chart=False):
         self.symbol = symbol
-        self.api_key = api_key
-        self.function = function
         self.years_to_display = years_to_display
-        self.url = f'https://www.alphavantage.co/query?function={self.function}&symbol={self.symbol}&apikey={self.api_key}'
         self.data = None
         self.filtered_dates = []
         self.filtered_prices = []
@@ -20,6 +16,22 @@ class KLine:
         self.best_short_period = 5
         self.best_long_period = 20
         self.max_crossovers = 0
+
+    def fetch_data(self):
+        ticker = yf.Ticker(self.symbol)
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=self.years_to_display * 365)
+        self.data = ticker.history(start=start_date, end=end_date, interval='1mo')
+        self.save_json()
+
+    def save_json(self):
+        filename = f'kline_{self.symbol}.json'
+        with open(filename, 'w') as f:
+            json.dump(self.data.to_dict('records'), f, indent=4, default=str)
+
+    def process_data(self):
+        self.filtered_dates = self.data.index.tolist()
+        self.filtered_prices = self.data['Close'].tolist()
 
     def get_inflection_points(self):
         self.fetch_data()
@@ -45,30 +57,6 @@ class KLine:
             }
             inflection_data.append(data)
         return inflection_data
-
-    def fetch_data(self):
-        r = requests.get(self.url)
-        self.data = r.json()
-        self.save_json()
-
-    def save_json(self):
-        filename = f'kline_{self.function}_{self.symbol}.json'
-        with open(filename, 'w') as f:
-            json.dump(self.data, f, indent=4)
-
-    def process_data(self):
-        time_series = self.data.get('Monthly Time Series', {})
-        dates = []
-        prices = []
-        for date, values in time_series.items():
-            dates.append(datetime.strptime(date, '%Y-%m-%d'))
-            prices.append(float(values['4. close']))
-        dates.reverse()
-        prices.reverse()
-
-        cutoff_date = datetime.now() - timedelta(days=self.years_to_display * 365)
-        self.filtered_dates = [date for date in dates if date > cutoff_date]
-        self.filtered_prices = prices[-len(self.filtered_dates):]
 
     @staticmethod
     def calculate_ma(data, period):
@@ -212,7 +200,7 @@ class KLine:
         print(f"Inflection points saved to {filename}")
 
 # Usage example:
-kline = KLine('OXY', 'AYTLT9XYXR8L9OSZ', show_chart=False)
+kline = KLine('OXY', show_chart=False)
 kline.fetch_data()
 kline.process_data()
 kline.analyze()

@@ -106,23 +106,17 @@ class KlineRaw(Resource):
 @ns.route('/inflection-points/<string:symbol>')
 class InflectionPoints(Resource):
     @ns.doc('get_inflection_points')
-    @ns.param('api_key', 'Alpha Vantage API key', required=True)
     @ns.param('threshold', 'Significant change threshold (default: 0.1)', required=False)
     @ns.param('years', 'Number of years to analyze (default: 20)', required=False)
     def get(self, symbol):
         """Get significant inflection points for a stock"""
         args = request.args
-        api_key = args.get('api_key')
         threshold = float(args.get('threshold', 0.1))
         years = int(args.get('years', 20))
-
-        if not api_key:
-            return {'error': 'API key is required'}, 400
 
         try:
             kline = KLine(
                 symbol=symbol,
-                api_key=api_key,
                 years_to_display=years,
                 significant_change_threshold=threshold
             )
