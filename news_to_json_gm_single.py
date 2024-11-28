@@ -62,28 +62,13 @@ def process_articles_with_gemini(articles):
         "severity": number,     // 1-5 scale
         "confidence": number,   // 0-1 scale
         "impact_duration": string // SHORT_TERM, MEDIUM_TERM, LONG_TERM
-    }},
-    "inflection_point": {{
-        "date": string,
-        "price": number,
-        "index": number,
-        "prev_date": string,
-        "prev_price": number,
-        "price_change": number
     }}
   }}
 ]
 
-Consider these inflection points for OXY stock:
-{inflection_points}
-
 Please process the following news articles and output the JSON according to these specifications:
 
 {article_texts}
-
-For each article, identify the most relevant inflection point by:
-1. Finding the closest inflection point date to the article date (prioritizing points before the article)
-2. Considering whether the price change direction aligns with the article's sentiment and content
 
 Important: Only output the JSON structure with no additional explanation or commentary. Ensure the JSON is valid and properly formatted. The output should be an array of JSON objects, one for each article processed."""
 
@@ -206,7 +191,7 @@ def main():
             total_articles = len(successful_articles)
             logging.info(f"Total successful articles: {total_articles}")
             
-            batch_size = 60
+            batch_size = 120
             all_results = []
             
             for i in range(0, total_articles, batch_size):
