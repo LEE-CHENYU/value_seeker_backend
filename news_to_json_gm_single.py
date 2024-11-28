@@ -66,8 +66,10 @@ def process_articles_with_gemini(articles):
     "inflection_point": {{
         "date": string,
         "price": number,
-        "relevance_ranking": number,
-        "reasoning": string     // Chain of thought in 140 characters
+        "index": number,
+        "prev_date": string,
+        "prev_price": number,
+        "price_change": number
     }}
   }}
 ]
@@ -79,7 +81,9 @@ Please process the following news articles and output the JSON according to thes
 
 {article_texts}
 
-For each article, identify the most relevant inflection point based on the event classification, specific impact on financials, and overall market sentiment. Rank the relevance of each article to its identified inflection point (1 being most relevant). Include a concise chain of thought (140 characters) explaining the relevance.
+For each article, identify the most relevant inflection point by:
+1. Finding the closest inflection point date to the article date (prioritizing points before the article)
+2. Considering whether the price change direction aligns with the article's sentiment and content
 
 Important: Only output the JSON structure with no additional explanation or commentary. Ensure the JSON is valid and properly formatted. The output should be an array of JSON objects, one for each article processed."""
 

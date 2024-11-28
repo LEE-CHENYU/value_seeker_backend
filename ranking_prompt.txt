@@ -5,5 +5,8 @@ each article to its identified inflection point (1 being most
 relevant). Include a concise chain of thought (140 characters) 
 explaining the relevance.
 
+"relevance_ranking": number,
+"reasoning": string     // Chain of thought in 140 characters
+        
 ***************************************************************
 load the two inflection points to reflect the price movement and feed into the LLM to match with the articles.

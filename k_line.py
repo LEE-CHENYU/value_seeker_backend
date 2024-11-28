@@ -5,7 +5,7 @@ import numpy as np
 from datetime import datetime, timedelta
 
 class KLine:
-    def __init__(self, symbol, api_key, function='TIME_SERIES_MONTHLY', years_to_display=20, significant_change_threshold=0.05):
+    def __init__(self, symbol, api_key, function='TIME_SERIES_MONTHLY', years_to_display=20, significant_change_threshold=0.1):
         self.symbol = symbol
         self.api_key = api_key
         self.function = function
@@ -70,7 +70,7 @@ class KLine:
                     self.best_long_period = long_test
 
     @staticmethod
-    def find_significant_inflections(prices, window=3, threshold=0.10, min_distance=2):
+    def find_significant_inflections(prices, window=3, threshold=0.05, min_distance=2):
         inflection_points = []
         
         def is_significant_change(current_idx, last_idx):
@@ -164,13 +164,17 @@ class KLine:
         self.save_inflection_points()
 
     def save_inflection_points(self):
-        inflection_data = [
-            {
+        inflection_data = []
+        for idx in self.inflection_points:
+            data = {
                 "date": self.filtered_dates[idx].strftime('%Y-%m-%d'),
                 "price": self.filtered_prices[idx],
-                "index": idx
-            } for idx in self.inflection_points
-        ]
+                "index": idx,
+                "prev_date": self.filtered_dates[idx-1].strftime('%Y-%m-%d') if idx > 0 else None,
+                "prev_price": self.filtered_prices[idx-1] if idx > 0 else None,
+                "price_change": self.filtered_prices[idx] - self.filtered_prices[idx-1] if idx > 0 else None
+            }
+            inflection_data.append(data)
         
         filename = f'inflection_points_{self.symbol}.json'
         with open(filename, 'w') as f:
