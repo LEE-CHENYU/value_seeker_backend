@@ -5,7 +5,7 @@ import numpy as np
 from datetime import datetime, timedelta
 
 class KLine:
-    def __init__(self, symbol, api_key, function='TIME_SERIES_MONTHLY', years_to_display=20, significant_change_threshold=0.1):
+    def __init__(self, symbol, api_key, function='TIME_SERIES_MONTHLY', years_to_display=20, significant_change_threshold=0.1, show_chart=False):
         self.symbol = symbol
         self.api_key = api_key
         self.function = function
@@ -19,6 +19,7 @@ class KLine:
         self.max_crossovers = 0
         self.significant_change_threshold = significant_change_threshold
         self.inflection_points = []
+        self.show_chart = show_chart
 
     def fetch_data(self):
         r = requests.get(self.url)
@@ -106,7 +107,7 @@ class KLine:
         
         return inflection_points
 
-    def plot(self):
+    def analyze(self):
         self.find_best_ma_periods()
         short_ma = self.calculate_ma(self.filtered_prices, self.best_short_period)
         long_ma = self.calculate_ma(self.filtered_prices, self.best_long_period)
@@ -117,6 +118,23 @@ class KLine:
         short_ma = short_ma[-min_length:]
         long_ma = long_ma[-min_length:]
 
+        window_size = 3
+
+        self.inflection_points = self.find_significant_inflections(self.filtered_prices, 
+                                                              window=window_size,
+                                                              threshold=self.significant_change_threshold)
+
+        print(f"Best short MA period: {self.best_short_period}")
+        print(f"Best long MA period: {self.best_long_period}")
+        print(f"Number of crossovers: {self.max_crossovers}")
+        print(f"Number of significant inflection points: {len(self.inflection_points)}")
+
+        self.save_inflection_points()
+
+        if self.show_chart:
+            self.plot(ma_dates, short_ma, long_ma)
+
+    def plot(self, ma_dates, short_ma, long_ma):
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 12))
 
         ax1.plot(self.filtered_dates, self.filtered_prices, label='Price', alpha=0.5)
@@ -135,12 +153,6 @@ class KLine:
         ax1.grid(True)
         ax1.legend()
 
-        window_size = 3
-
-        self.inflection_points = self.find_significant_inflections(self.filtered_prices, 
-                                                              window=window_size,
-                                                              threshold=self.significant_change_threshold)
-
         ax2.plot(self.filtered_dates, self.filtered_prices, label='Price', alpha=0.8)
 
         for idx in self.inflection_points:
@@ -155,13 +167,6 @@ class KLine:
 
         plt.tight_layout()
         plt.show()
-
-        print(f"Best short MA period: {self.best_short_period}")
-        print(f"Best long MA period: {self.best_long_period}")
-        print(f"Number of crossovers: {self.max_crossovers}")
-        print(f"Number of significant inflection points: {len(self.inflection_points)}")
-
-        self.save_inflection_points()
 
     def save_inflection_points(self):
         inflection_data = []
@@ -182,7 +187,7 @@ class KLine:
         print(f"Inflection points saved to {filename}")
 
 # Usage example:
-kline = KLine('OXY', 'AYTLT9XYXR8L9OSZ')
+kline = KLine('OXY', 'AYTLT9XYXR8L9OSZ', show_chart=False)
 kline.fetch_data()
 kline.process_data()
-kline.plot()
+kline.analyze()

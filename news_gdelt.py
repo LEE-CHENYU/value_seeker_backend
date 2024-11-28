@@ -5,7 +5,7 @@ import asyncio
 from bs4 import BeautifulSoup
 
 f = Filters(
-    keyword = ["apple", "APPL"],
+    keyword = ["apple", "AAPL"],
     theme = ["ECON_STOCKMARKET", "ECON_TRADE"],
     domain = ["cnbc.com", "businessinsider.com", "seekingalpha.com", "investing.com", "finance.yahoo.com", "marketwatch.com", "morningstar.com"],
     # domain = ["investing.com", "seekingalpha.com", "finance.yahoo.com", "marketwatch.com"],
