@@ -8,6 +8,7 @@ import re
 import atexit
 import google.api_core.grpc_helpers
 from google.cloud import aiplatform
+import argparse
 
 # Load environment variables from .env file
 load_dotenv()
@@ -247,7 +248,10 @@ def main(scraped_articles_file='scraped_articles_results.json'):
     return output_folder
 
 if __name__ == "__main__":
-    import sys
-    scraped_articles_file = sys.argv[1] if len(sys.argv) > 1 else 'scraped_articles_results.json'
-    output_folder = main(scraped_articles_file)
+    parser = argparse.ArgumentParser(description='Process scraped articles')
+    parser.add_argument('scraped_articles_file', nargs='?', default='scraped_articles_results.json',
+                        help='Path to the scraped articles file (default: scraped_articles_results.json)')
+    args = parser.parse_args()
+    
+    output_folder = main(args.scraped_articles_file)
     print(f"Output folder: {output_folder}")

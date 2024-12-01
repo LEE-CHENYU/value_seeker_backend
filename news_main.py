@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 keywords = ["Occidental Petroleum", "OXY"]
 output_folder = f'gm_single_{keywords[1]}'
+if not os.path.exists(output_folder):
+    os.makedirs(output_folder)
 
 async def process_inflection_point(inflection_date, price):
     logger.info(f"Processing inflection point for date: {inflection_date}")
@@ -62,7 +64,7 @@ async def process_inflection_point(inflection_date, price):
     
     # Process news articles using news_to_json_gm_single
     logger.info("Processing news articles with Gemini")
-    news_output_folder = subprocess.run(['python', 'value_seeker_backend/news_to_json_gm_single.py', f'scraped_articles_{inflection_date}.json'])
+    news_output_folder = news_to_json_gm_single.main(f'scraped_articles_{inflection_date}.json')
     
     # Apply filter.py
     logger.info("Applying filter to processed articles")
@@ -91,7 +93,7 @@ async def main():
     logger.info("Processing inflection points")
     for point in inflection_points:
         logger.info(f"Processing inflection point: {point['date']}")
-        output_folder = await process_inflection_point(point['date'], point['price'])
+        await process_inflection_point(point['date'], point['price'])
         
     # Only proceed with indexing if we have a valid output folder
     if output_folder:
