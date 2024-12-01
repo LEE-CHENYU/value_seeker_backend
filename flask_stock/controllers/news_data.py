@@ -62,6 +62,8 @@ class NewsByInflection(Resource):
     def get(self, symbol):
         """Get news data organized by inflection points for a given stock symbol"""
         try:
+            print(f"[News API] Received request for symbol: {symbol}")
+            
             # Construct the file path
             file_path = os.path.join(
                 os.path.dirname(__file__), 
@@ -69,14 +71,42 @@ class NewsByInflection(Resource):
                 f'news_by_inflection_{symbol}.json'
             )
             
+            print(f"[News API] Looking for file at: {file_path}")
+            print(f"[News API] File exists: {os.path.exists(file_path)}")
+            
             # Check if file exists
             if not os.path.exists(file_path):
-                return {'error': f'No news data found for symbol {symbol}'}, 404
+                print(f"[News API] File not found for symbol: {symbol}")
+                return {
+                    'success': False,
+                    'error': f'No news data found for symbol {symbol}',
+                    'data': {}
+                }, 404
             
             # Load and return the JSON data
+            print(f"[News API] Loading JSON data for {symbol}")
             with open(file_path, 'r') as file:
                 data = json.load(file)
-                return jsonify(data)
+                print(f"[News API] Successfully loaded data with {len(data)} entries")
+                
+                # Log some basic stats about the data
+                news_count = sum(
+                    len(date_data.get('news', [])) 
+                    for date_data in data.values()
+                )
+                print(f"[News API] Total news articles: {news_count}")
+                
+                return jsonify({
+                    'success': True,
+                    'data': data
+                })
                 
         except Exception as e:
-            return {'error': f'Error loading news data: {str(e)}'}, 500 
+            print(f"[News API] Error processing request: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {
+                'success': False,
+                'error': f'Error loading news data: {str(e)}',
+                'data': {}
+            }, 500 
