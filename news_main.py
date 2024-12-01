@@ -9,6 +9,7 @@ from k_line import KLine
 import logging
 import subprocess
 import news_to_json_gm_single
+import filter
 import glob
 
 # Configure logging
@@ -47,7 +48,7 @@ async def process_inflection_point(inflection_date, price):
                 "investing.com", "finance.yahoo.com", "marketwatch.com"],
         start_date=start_date,
         end_date=end_date,
-        num_articles=10
+        num_articles=20
     )
     
     # Fetch and download articles
@@ -68,7 +69,7 @@ async def process_inflection_point(inflection_date, price):
     
     # Apply filter.py
     logger.info("Applying filter to processed articles")
-    subprocess.run(['python', 'value_seeker_backend/filter.py', str(news_output_folder)])
+    filter.filtered_articles(str(news_output_folder), output_folder)
     
     logger.info(f"Completed processing for inflection point: {inflection_date}")
 
@@ -132,7 +133,7 @@ async def main():
         indexer = NewsIndexer(
             f'{output_folder}/combined_filtered_articles.json',
             'inflection_points_OXY.json',
-            'news_by_inflection_OXY.json'
+            f'{output_folder}/news_by_inflection_OXY.json'
         )
         indexer.run()
         logger.info("News indexing completed")
