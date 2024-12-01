@@ -30,7 +30,7 @@ class KLine:
 
     def process_data(self):
         self.filtered_dates = self.data.index.tolist()
-        self.filtered_prices = self.data['Close']['OXY'].tolist()
+        self.filtered_prices = self.data['Close'][self.symbol].tolist()
 
     @staticmethod
     def calculate_ma(data, period):

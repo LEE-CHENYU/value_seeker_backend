@@ -28,10 +28,10 @@ async def process_inflection_point(inflection_date, price):
     date = datetime.strptime(inflection_date, '%Y-%m-%d')
     logger.info(f"Converted inflection date to datetime: {date}")
     
-    # Add date validation before proceeding
-    min_allowed_date = datetime(2016, 1, 1)
+    # Update the minimum allowed date to 2016-02-19 (GDELT's actual limitation)
+    min_allowed_date = datetime(2016, 12, 31)  # GDELT's actual start date
     if date < min_allowed_date:
-        logger.warning(f"Skipping date {inflection_date} - GDELT only supports dates from 2015 onwards")
+        logger.warning(f"Skipping date {inflection_date} - GDELT only supports dates from February 19, 2016 onwards")
         return
     
     # Calculate date range
@@ -42,7 +42,7 @@ async def process_inflection_point(inflection_date, price):
     # Initialize GDELT fetcher
     logger.info("Initializing GDELT fetcher")
     fetcher = GDELTNewsFetcher(
-        keywords=["Occidental Petroleum", "OXY"],
+        keywords=keywords,
         themes=["ECON_STOCKMARKET", "ECON_TRADE"],
         domains=["cnbc.com", "businessinsider.com", "seekingalpha.com", 
                 "investing.com", "finance.yahoo.com", "marketwatch.com"],
@@ -69,16 +69,16 @@ async def process_inflection_point(inflection_date, price):
     
     # Apply filter.py
     logger.info("Applying filter to processed articles")
-    filter.filtered_articles(str(news_output_folder), output_folder)
+    filter.filter_articles(str(news_output_folder), output_folder)
     
     logger.info(f"Completed processing for inflection point: {inflection_date}")
 
 async def main():
     logger.info("Starting main process")
     
-    # Run k_line.py to generate inflection_points_OXY.json
+    # Run k_line.py to generate inflection_points_AAPL.json
     logger.info("Running k_line.py to generate inflection points")
-    kline = KLine('OXY', show_chart=False)
+    kline = KLine(keywords[1], show_chart=False)
     kline.fetch_data()
     kline.process_data()
     kline.analyze()
@@ -86,7 +86,7 @@ async def main():
     
     # Load inflection points data
     logger.info("Loading inflection points data")
-    with open('inflection_points_OXY.json', 'r') as f:
+    with open(f'inflection_points_{keywords[1]}.json', 'r') as f:
         inflection_points = json.load(f)
     logger.info(f"Loaded {len(inflection_points)} inflection points")
     
@@ -132,8 +132,8 @@ async def main():
         logger.info("Indexing the news")
         indexer = NewsIndexer(
             f'{output_folder}/combined_filtered_articles.json',
-            'inflection_points_OXY.json',
-            f'{output_folder}/news_by_inflection_OXY.json'
+            f'inflection_points_{keywords[1]}.json',
+            f'{output_folder}/news_by_inflection_{keywords[1]}.json'
         )
         indexer.run()
         logger.info("News indexing completed")
