@@ -186,8 +186,9 @@ class KLine:
             json.dump(inflection_data, f, indent=4)
         print(f"Inflection points saved to {filename}")
 
+if __name__ == "__main__":
 # Usage example:
-kline = KLine('AAPL', 'AYTLT9XYXR8L9OSZ', show_chart=True)
-kline.fetch_data()
-kline.process_data()
-kline.analyze()
+    kline = KLine('AAPL', 'AYTLT9XYXR8L9OSZ', show_chart=False)
+    kline.fetch_data()
+    kline.process_data()
+    kline.analyze()

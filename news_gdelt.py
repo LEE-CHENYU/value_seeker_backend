@@ -4,44 +4,58 @@ import aiohttp
 import asyncio
 from bs4 import BeautifulSoup
 
-f = Filters(
-    keyword = ["apple", "AAPL"],
-    theme = ["ECON_STOCKMARKET", "ECON_TRADE"],
-    domain = ["cnbc.com", "businessinsider.com", "seekingalpha.com", "investing.com", "finance.yahoo.com", "marketwatch.com", "morningstar.com"],
-    # domain = ["investing.com", "seekingalpha.com", "finance.yahoo.com", "marketwatch.com"],
-    start_date = "2022-10-14",
-    end_date = "2024-11-15"
-)
+class GDELTNewsFetcher:
+    def __init__(self, keywords, themes, domains, start_date, end_date, num_articles=5):
+        self.filters = Filters(
+            keyword=keywords,
+            theme=themes,
+            domain=domains,
+            start_date=start_date,
+            end_date=end_date
+        )
+        self.gd = GdeltDoc()
+        self.articles = None
+        self.articles_dict = None
+        self.num_articles = num_articles
 
-gd = GdeltDoc()
-articles = gd.article_search(f)
+    def fetch_articles(self):
+        self.articles = self.gd.article_search(self.filters)
+        print(self.articles)
+        self.articles_dict = self.articles.to_dict(orient='records')
+        if self.num_articles:
+            self.articles_dict = self.articles_dict[:self.num_articles]
 
-print(articles)
+    async def fetch_content(self, session, url):
+        async with session.get(url) as response:
+            if response.status == 200:
+                html = await response.text()
+                soup = BeautifulSoup(html, 'html.parser')
+                return soup.get_text()
+        return None
 
-# Convert articles DataFrame to dictionary
-articles_dict = articles.to_dict(orient='records')
+    async def download_articles(self):
+        async with aiohttp.ClientSession() as session:
+            tasks = [self.fetch_content(session, article['url']) for article in self.articles_dict]
+            contents = await asyncio.gather(*tasks)
+            
+        for article, content in zip(self.articles_dict, contents):
+            article['content'] = content
 
-async def fetch_content(session, url):
-    async with session.get(url) as response:
-        if response.status == 200:
-            html = await response.text()
-            soup = BeautifulSoup(html, 'html.parser')
-            return soup.get_text()
-    return None
-
-async def download_articles(articles):
-    async with aiohttp.ClientSession() as session:
-        tasks = [fetch_content(session, article['url']) for article in articles]
-        contents = await asyncio.gather(*tasks)
+    async def run(self):
+        self.fetch_articles()
+        await self.download_articles()
         
-    for article, content in zip(articles, contents):
-        article['content'] = content
+        # Save to JSON file with content
+        with open('gdelt_articles_with_content.json', 'w') as f:
+            json.dump(self.articles_dict, f, indent=4)
 
-async def main():
-    await download_articles(articles_dict)
-    
-    # Save to JSON file with content
-    with open('gdelt_articles_with_content.json', 'w') as f:
-        json.dump(articles_dict, f, indent=4)
-
-asyncio.run(main())
+if __name__ == "__main__":
+    fetcher = GDELTNewsFetcher(
+        keywords=["apple", "AAPL"],
+        themes=["ECON_STOCKMARKET", "ECON_TRADE"],
+        domains=["cnbc.com", "businessinsider.com", "seekingalpha.com", "investing.com", "finance.yahoo.com", "marketwatch.com", "morningstar.com"],
+        start_date="2023-10-14",
+        end_date="2023-11-01",
+        num_articles=50  # Specify the number of articles you want
+    )
+    asyncio.run(fetcher.run())

@@ -15,14 +15,26 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def process_articles_with_gemini(articles):
-    logging.info("Starting to process articles with Gemini")
+class NewsProcessor:
+    def __init__(self, scraped_articles_file):
+        self.scraped_articles_file = scraped_articles_file
+        self.inflection_points = self.load_inflection_points()
+        self.prompt = self.get_prompt_template()
+        self.generation_config = {
+            "temperature": 0,
+            "top_p": 0.95,
+            "top_k": 40,
+            "max_output_tokens": 8192,
+            "response_mime_type": "text/plain",
+        }
+        self.model = self.initialize_model()
 
-    # Load inflection points
-    with open('inflection_points_OXY.json', 'r') as f:
-        inflection_points = json.load(f)
+    def load_inflection_points(self):
+        with open('inflection_points_OXY.json', 'r') as f:
+            return json.load(f)
 
-    prompt = """You are a financial news analyzer. Your task is to extract structured information from multiple financial news articles and output it in JSON format. Follow these specific guidelines:
+    def get_prompt_template(self):
+        return """You are a financial news analyzer. Your task is to extract structured information from multiple financial news articles and output it in JSON format. Follow these specific guidelines:
 
 Output Structure Required:
 [
@@ -81,125 +93,106 @@ Important formatting rules:
 6. Use proper JSON syntax with colons and commas
 7. All key_points entries must have values (either true for text or quoted strings for numbers with units)"""
 
-    logging.info("Sending request to Gemini")
+    def initialize_model(self):
+        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+        return genai.GenerativeModel(
+            model_name="gemini-1.5-pro",
+            generation_config=self.generation_config,
+        )
 
-    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+    def process_articles_with_gemini(self, articles):
+        logging.info("Starting to process articles with Gemini")
 
-    generation_config = {
-        "temperature": 0,
-        "top_p": 0.95,
-        "top_k": 40,
-        "max_output_tokens": 8192,
-        "response_mime_type": "text/plain",
-    }
-
-    model = genai.GenerativeModel(
-        model_name="gemini-1.5-pro",
-        generation_config=generation_config,
-    )
-
-    article_texts = "\n\n---ARTICLE SEPARATOR---\n\n".join([article['content'] for article in articles if article.get('content')])
-    
-    try:
-        response = model.generate_content(prompt.format(
-            inflection_points=json.dumps(inflection_points, indent=2),
-            article_texts=article_texts
-        ))
-        logging.info("Received response from Gemini")
-
+        article_texts = "\n\n---ARTICLE SEPARATOR---\n\n".join([article['content'] for article in articles if article.get('content')])
+        
         try:
-            # Clean up the response text
-            json_content = response.text.strip()
-            # Remove any markdown code block indicators
-            json_content = re.sub(r'^```json\s*|\s*```$', '', json_content)
-            # Remove any trailing commas before closing brackets/braces
-            json_content = re.sub(r',(\s*[}\]])', r'\1', json_content)
-            # Clean up any potential whitespace issues
-            json_content = json_content.strip()
+            response = self.model.generate_content(self.prompt.format(
+                inflection_points=json.dumps(self.inflection_points, indent=2),
+                article_texts=article_texts
+            ))
+            logging.info("Received response from Gemini")
+
+            return self.parse_gemini_response(response.text)
+
+        except Exception as e:
+            logging.error(f"Error processing articles: {str(e)}")
+            return [{
+                "error": "Error processing articles",
+                "error_details": str(e)
+            }]
+
+    def parse_gemini_response(self, response_text):
+        try:
+            json_content = self.clean_response_text(response_text)
             
             try:
-                # Save the raw response for later parsing
-                raw_response = json_content
                 with open('gemini_response.txt', 'w', encoding='utf-8') as txt_file:
-                    txt_file.write(raw_response)
+                    txt_file.write(json_content)
                 parsed_response = json.loads(json_content)
                 logging.info("Successfully parsed Gemini's response as JSON")
                 return parsed_response
             except json.JSONDecodeError as e:
-                logging.error(f"JSON parse error: {str(e)}")
-                logging.error(f"Problematic JSON content: {json_content}")
-                logging.error(f"Error position: {e.pos}")
-                logging.error(f"Error line number: {e.lineno}")
-                logging.error(f"Error column number: {e.colno}")
-                logging.error(f"Error message: {e.msg}")
-                
-                # Log the surrounding context of the error
-                error_context = json_content[max(0, e.pos - 50):min(len(json_content), e.pos + 50)]
-                logging.error(f"Error context: {error_context}")
-                
-                # Attempt to identify specific JSON formatting issues
-                if "Expecting property name enclosed in double quotes" in str(e):
-                    logging.error("Possible missing quotes around a property name")
-                elif "Expecting ',' delimiter" in str(e):
-                    logging.error("Possible missing comma between elements")
-                elif "Expecting value" in str(e):
-                    logging.error("Possible missing value for a property")
-                
-                # Return error information instead of empty list
-                return [{
-                    "error": "JSON parse error",
-                    "error_details": str(e),
-                    "error_position": e.pos,
-                    "error_line": e.lineno,
-                    "error_column": e.colno,
-                    "error_context": error_context,
-                    "raw_response": json_content
-                }]
+                return self.handle_json_decode_error(e, json_content)
 
         except Exception as e:
             logging.error(f"Error cleaning response text: {str(e)}")
-            logging.error(f"Raw response: {response.text}")
+            logging.error(f"Raw response: {response_text}")
             return [{
                 "error": "Error cleaning response text",
                 "error_details": str(e),
-                "raw_response": response.text
+                "raw_response": response_text
             }]
 
-    except Exception as e:
-        logging.error(f"Error processing articles: {str(e)}")
+    def clean_response_text(self, text):
+        cleaned = text.strip()
+        cleaned = re.sub(r'^```json\s*|\s*```$', '', cleaned)
+        cleaned = re.sub(r',(\s*[}\]])', r'\1', cleaned)
+        return cleaned.strip()
+
+    def handle_json_decode_error(self, error, json_content):
+        logging.error(f"JSON parse error: {str(error)}")
+        logging.error(f"Problematic JSON content: {json_content}")
+        logging.error(f"Error position: {error.pos}")
+        logging.error(f"Error line number: {error.lineno}")
+        logging.error(f"Error column number: {error.colno}")
+        logging.error(f"Error message: {error.msg}")
+        
+        error_context = json_content[max(0, error.pos - 50):min(len(json_content), error.pos + 50)]
+        logging.error(f"Error context: {error_context}")
+        
+        if "Expecting property name enclosed in double quotes" in str(error):
+            logging.error("Possible missing quotes around a property name")
+        elif "Expecting ',' delimiter" in str(error):
+            logging.error("Possible missing comma between elements")
+        elif "Expecting value" in str(error):
+            logging.error("Possible missing value for a property")
+        
         return [{
-            "error": "Error processing articles",
-            "error_details": str(e)
+            "error": "JSON parse error",
+            "error_details": str(error),
+            "error_position": error.pos,
+            "error_line": error.lineno,
+            "error_column": error.colno,
+            "error_context": error_context,
+            "raw_response": json_content
         }]
 
-def save_batch_results(batch_results, batch_number, output_folder):
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    output_file = f'processed_articles_batch_{batch_number}_{timestamp}.json'
-    output_path = os.path.join(output_folder, output_file)
-    
-    logging.info(f"Saving batch {batch_number} results to {output_path}")
-    with open(output_path, 'w', encoding='utf-8') as f:
-        json.dump(batch_results, f, indent=2, ensure_ascii=False)
-    
-    logging.info(f"Batch {batch_number} results saved to {output_path}")
-
-def cleanup_grpc():
-    try:
-        # Force cleanup of gRPC channels
-        aiplatform.initializer.global_pool.close()
-    except Exception as e:
-        logging.warning(f"gRPC cleanup warning: {e}")
-
-def main():
-    try:
-        # Register cleanup function
-        atexit.register(cleanup_grpc)
+    def save_batch_results(self, batch_results, batch_number, output_folder):
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        output_file = f'processed_articles_batch_{batch_number}_{timestamp}.json'
+        output_path = os.path.join(output_folder, output_file)
         
-        logging.info("Script started")
+        logging.info(f"Saving batch {batch_number} results to {output_path}")
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(batch_results, f, indent=2, ensure_ascii=False)
+        
+        logging.info(f"Batch {batch_number} results saved to {output_path}")
+
+    def process_all_articles(self):
         try:
-            with open('scraped_articles_results.json', 'r', encoding='utf-8') as f:
+            with open(self.scraped_articles_file, 'r', encoding='utf-8') as f:
                 scraped_data = json.load(f)
-            logging.info("Successfully loaded scraped_articles_results.json")
+            logging.info(f"Successfully loaded {self.scraped_articles_file}")
             
             successful_articles = scraped_data['successful_articles']
             total_articles = len(successful_articles)
@@ -208,7 +201,6 @@ def main():
             batch_size = 20
             all_results = []
             
-            # Create output folder
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             output_folder = f'gm_single_{timestamp}'
             os.makedirs(output_folder, exist_ok=True)
@@ -218,10 +210,10 @@ def main():
                 batch_number = i//batch_size + 1
                 logging.info(f"Processing batch {batch_number} of {(total_articles + batch_size - 1)//batch_size}")
                 
-                batch_results = process_articles_with_gemini(batch)
+                batch_results = self.process_articles_with_gemini(batch)
                 all_results.extend(batch_results)
                 
-                save_batch_results(batch_results, batch_number, output_folder)
+                self.save_batch_results(batch_results, batch_number, output_folder)
                 
                 logging.info(f"Completed processing batch {batch_number}")
             
@@ -233,13 +225,26 @@ def main():
                 json.dump(all_results, f, indent=2, ensure_ascii=False)
             
             logging.info(f"Processing completed. All results saved to {output_path}")
+            return output_folder
         except Exception as e:
             logging.error(f"An error occurred: {str(e)}")
             logging.exception("Exception details:")
-        logging.info("Script finished")
-    finally:
-        # Ensure cleanup happens even if there's an error
-        cleanup_grpc()
+            return None
+
+def cleanup_grpc():
+    try:
+        aiplatform.initializer.global_pool.close()
+    except Exception as e:
+        logging.warning(f"gRPC cleanup warning: {e}")
+
+def main(scraped_articles_file='scraped_articles_results.json'):
+    atexit.register(cleanup_grpc)
+    logging.info("Script started")
+    processor = NewsProcessor(scraped_articles_file)
+    processor.process_all_articles()
+    logging.info("Script finished")
 
 if __name__ == "__main__":
-    main()
+    import sys
+    scraped_articles_file = sys.argv[1] if len(sys.argv) > 1 else 'scraped_articles_results.json'
+    main(scraped_articles_file)
