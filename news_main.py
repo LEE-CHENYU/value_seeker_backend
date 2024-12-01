@@ -16,7 +16,7 @@ import glob
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-keywords = ["Occidental Petroleum", "OXY"]
+keywords = ["Apple", "AAPL"]
 output_folder = f'gm_single_{keywords[1]}'
 if not os.path.exists(output_folder):
     os.makedirs(output_folder)

@@ -9,6 +9,7 @@ from flask_stock import create_app
 from flask_stock.flask_settings import * 
 from flask_stock.controllers.health import ns as health_ns
 from flask_stock.controllers.kline_data import ns as kline_ns
+from flask_stock.controllers.news_data import ns as news_ns
 from flask import jsonify, request
 from flask_cors import CORS  # You'll need to install flask-cors
 
@@ -19,6 +20,7 @@ CORS(app)  # Enable CORS for all routes
 
 api.add_namespace(health_ns)
 api.add_namespace(kline_ns)
+api.add_namespace(news_ns)
 logger.debug(f"api: {api.namespaces}")
 
 logger.debug(f"flask_app.blueprint: {app.blueprints.__repr__()}")
