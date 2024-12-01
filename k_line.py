@@ -1,16 +1,13 @@
-import requests
+import yfinance as yf
 import json
 import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime, timedelta
 
 class KLine:
-    def __init__(self, symbol, api_key, function='TIME_SERIES_MONTHLY', years_to_display=20, significant_change_threshold=0.1, show_chart=False):
+    def __init__(self, symbol, years_to_display=20, significant_change_threshold=0.1, show_chart=False):
         self.symbol = symbol
-        self.api_key = api_key
-        self.function = function
         self.years_to_display = years_to_display
-        self.url = f'https://www.alphavantage.co/query?function={self.function}&symbol={self.symbol}&apikey={self.api_key}'
         self.data = None
         self.filtered_dates = []
         self.filtered_prices = []
@@ -22,28 +19,18 @@ class KLine:
         self.show_chart = show_chart
 
     def fetch_data(self):
-        r = requests.get(self.url)
-        self.data = r.json()
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=self.years_to_display * 365)
+        self.data = yf.download(self.symbol, start=start_date, end=end_date, interval='1mo')
         self.save_json()
 
     def save_json(self):
-        filename = f'kline_{self.function}_{self.symbol}.json'
-        with open(filename, 'w') as f:
-            json.dump(self.data, f, indent=4)
+        filename = f'kline_monthly_{self.symbol}.json'
+        self.data.to_json(filename, date_format='iso')
 
     def process_data(self):
-        time_series = self.data.get('Monthly Time Series', {})
-        dates = []
-        prices = []
-        for date, values in time_series.items():
-            dates.append(datetime.strptime(date, '%Y-%m-%d'))
-            prices.append(float(values['4. close']))
-        dates.reverse()
-        prices.reverse()
-
-        cutoff_date = datetime.now() - timedelta(days=self.years_to_display * 365)
-        self.filtered_dates = [date for date in dates if date > cutoff_date]
-        self.filtered_prices = prices[-len(self.filtered_dates):]
+        self.filtered_dates = self.data.index.tolist()
+        self.filtered_prices = self.data['Close']['OXY'].tolist()
 
     @staticmethod
     def calculate_ma(data, period):
@@ -188,7 +175,7 @@ class KLine:
 
 if __name__ == "__main__":
 # Usage example:
-    kline = KLine('AAPL', 'AYTLT9XYXR8L9OSZ', show_chart=False)
+    kline = KLine('AAPL', show_chart=False)
     kline.fetch_data()
     kline.process_data()
     kline.analyze()

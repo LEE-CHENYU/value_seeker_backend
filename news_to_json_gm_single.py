@@ -233,7 +233,7 @@ Important formatting rules:
 
 def cleanup_grpc():
     try:
-        aiplatform.initializer.global_pool.close()
+        aiplatform.initializer.global_pool.shutdown(wait=False)
     except Exception as e:
         logging.warning(f"gRPC cleanup warning: {e}")
 
@@ -241,10 +241,13 @@ def main(scraped_articles_file='scraped_articles_results.json'):
     atexit.register(cleanup_grpc)
     logging.info("Script started")
     processor = NewsProcessor(scraped_articles_file)
-    processor.process_all_articles()
+    output_folder = processor.process_all_articles()
     logging.info("Script finished")
+    
+    return output_folder
 
 if __name__ == "__main__":
     import sys
     scraped_articles_file = sys.argv[1] if len(sys.argv) > 1 else 'scraped_articles_results.json'
-    main(scraped_articles_file)
+    output_folder = main(scraped_articles_file)
+    print(f"Output folder: {output_folder}")

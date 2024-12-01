@@ -62,11 +62,11 @@ async def process_inflection_point(inflection_date, price):
     
     # Process news articles using news_to_json_gm_single
     logger.info("Processing news articles with Gemini")
-    subprocess.run(['python', 'value_seeker_backend/news_to_json_gm_single.py', f'scraped_articles_{inflection_date}.json'])
+    news_output_folder = subprocess.run(['python', 'value_seeker_backend/news_to_json_gm_single.py', f'scraped_articles_{inflection_date}.json'])
     
     # Apply filter.py
     logger.info("Applying filter to processed articles")
-    subprocess.run(['python', 'value_seeker_backend/filter.py', output_folder])
+    subprocess.run(['python', 'value_seeker_backend/filter.py', str(news_output_folder)])
     
     logger.info(f"Completed processing for inflection point: {inflection_date}")
 
@@ -75,7 +75,7 @@ async def main():
     
     # Run k_line.py to generate inflection_points_OXY.json
     logger.info("Running k_line.py to generate inflection points")
-    kline = KLine('OXY', 'AYTLT9XYXR8L9OSZ', show_chart=False)
+    kline = KLine('OXY', show_chart=False)
     kline.fetch_data()
     kline.process_data()
     kline.analyze()
