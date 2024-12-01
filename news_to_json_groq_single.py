@@ -82,7 +82,8 @@ Important formatting rules:
 5. No comments or extra text
 6. Use proper JSON syntax with colons and commas
 7. All key_points entries must have values (either true for text or quoted strings for numbers with units)
-8. The JSON output must start with [ and end with ], with no markdown markers before or after"""
+8. The JSON output must start with [ and end with ], with no markdown markers before or after
+9. URLs must be properly escaped with double quotes and no trailing special characters"""
 
     logging.info("Sending request to Groq")
 

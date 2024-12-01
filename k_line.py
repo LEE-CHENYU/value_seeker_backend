@@ -187,7 +187,7 @@ class KLine:
         print(f"Inflection points saved to {filename}")
 
 # Usage example:
-kline = KLine('OXY', 'AYTLT9XYXR8L9OSZ', show_chart=True)
+kline = KLine('AAPL', 'AYTLT9XYXR8L9OSZ', show_chart=True)
 kline.fetch_data()
 kline.process_data()
 kline.analyze()
