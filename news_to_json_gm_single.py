@@ -238,7 +238,7 @@ def cleanup_grpc():
     except Exception as e:
         logging.warning(f"gRPC cleanup warning: {e}")
 
-def main(scraped_articles_file='scraped_articles_results.json'):
+async def main(scraped_articles_file='scraped_articles_results.json'):
     atexit.register(cleanup_grpc)
     logging.info("Script started")
     processor = NewsProcessor(scraped_articles_file)

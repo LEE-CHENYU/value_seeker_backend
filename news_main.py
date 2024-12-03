@@ -65,11 +65,11 @@ async def process_inflection_point(inflection_date, price):
     
     # Process news articles using news_to_json_gm_single
     logger.info("Processing news articles with Gemini")
-    news_output_folder = news_to_json_gm_single.main(f'scraped_articles_{inflection_date}.json')
+    news_output_folder = await news_to_json_gm_single.main(f'scraped_articles_{inflection_date}.json')
     
     # Apply filter.py
     logger.info("Applying filter to processed articles")
-    filter.filter_articles(str(news_output_folder), output_folder)
+    await filter.filter_articles(str(news_output_folder), output_folder)
     
     logger.info(f"Completed processing for inflection point: {inflection_date}")
 
@@ -92,9 +92,12 @@ async def main():
     
     # Process each inflection point
     logger.info("Processing inflection points")
-    for point in inflection_points:
-        logger.info(f"Processing inflection point: {point['date']}")
-        await process_inflection_point(point['date'], point['price'])
+    # Create tasks for all inflection points
+    tasks = [process_inflection_point(point['date'], point['price']) for point in inflection_points]
+    
+    # Process all inflection points concurrently
+    logger.info(f"Processing {len(tasks)} inflection points concurrently")
+    await asyncio.gather(*tasks)
         
     # Only proceed with indexing if we have a valid output folder
     if output_folder:

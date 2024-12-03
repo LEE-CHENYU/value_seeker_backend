@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 
-def filter_articles(input_folder = 'gm_single_20241130_230030', output_folder = 'gm_single_OXY'):
+async def filter_articles(input_folder = 'gm_single_20241130_230030', output_folder = 'gm_single_OXY'):
     # Read the input JSON file
     with open(f'{input_folder}/processed_articles_all.json', 'r') as f:
         data = json.load(f)
